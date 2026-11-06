@@ -12,7 +12,8 @@ const STAFF_EMAIL = String(process.env.STAFF_EMAIL || 'admin@tandrahub.com').tri
 const STAFF_PASSWORD = String(process.env.STAFF_PASSWORD || '');
 const COLS = ['estates', 'users', 'apps', 'notices', 'media', 'inspections', 'broadcasts', 'subscribers'];
 const SEED = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed.json'), 'utf8'));
-const MAX_JSON = 4 * 1024 * 1024, MAX_FILE = 8 * 1024 * 1024;
+const MAX_JSON = 4 * 1024 * 1024, MAX_FILE = 3 * 1024 * 1024, MAX_PDF = 2 * 1024 * 1024, FREE_BYTES = 1024 ** 3;
+const PLANS = SEED.settings.plans;
 
 /* ---------------- storage ---------------- */
 function fileStore() {
@@ -27,8 +28,11 @@ function fileStore() {
     async loadAll() { const out = []; for (const c in db) for (const id in db[c]) out.push({ col: c, id, data: db[c][id] }); return out; },
     async put(col, id, data) { (db[col] = db[col] || {})[id] = data; flush(); },
     async del(col, id) { if (db[col]) delete db[col][id]; flush(); },
-    async putFile(id, meta, buf) { fs.writeFileSync(path.join(dir, 'files', id), buf); await this.put('_files', id, meta); },
+    async putFile(id, meta, buf) { fs.writeFileSync(path.join(dir, 'files', id), buf); await this.put('_files', id, { ...meta, created: new Date().toISOString() }); },
     async getFile(id) { const m = db._files && db._files[id]; if (!m) return null; try { return { ...m, data: fs.readFileSync(path.join(dir, 'files', id)) }; } catch (e) { return null; } },
+    async listFiles() { return Object.entries(db._files || {}).map(([id, m]) => ({ id, size: m.size || 0, created: m.created || '1970-01-01' })); },
+    async delFile(id) { try { fs.unlinkSync(path.join(dir, 'files', id)); } catch (e) {} if (db._files) delete db._files[id]; flush(); },
+    async usage() { let files = 0; for (const m of Object.values(db._files || {})) files += m.size || 0; let total = files; try { total += fs.statSync(dbf).size; } catch (e) {} return { total, files }; },
   };
 }
 function pgStore(url) {
@@ -49,6 +53,9 @@ function pgStore(url) {
     async del(col, id) { await q('delete from docs where col = $1 and id = $2', [col, id]); },
     async putFile(id, meta, buf) { await q('insert into files (id, name, type, size, data) values ($1, $2, $3, $4, $5)', [id, meta.name, meta.type, buf.length, buf]); },
     async getFile(id) { const r = await q('select name, type, data from files where id = $1', [id]); return r.rows[0] || null; },
+    async listFiles() { return (await q('select id, size, created from files')).rows.map(r => ({ id: r.id, size: +r.size || 0, created: new Date(r.created).toISOString() })); },
+    async delFile(id) { await q('delete from files where id = $1', [id]); },
+    async usage() { const r = (await q('select pg_database_size(current_database()) as total, (select coalesce(sum(size),0) from files) as files')).rows[0]; return { total: +r.total, files: +r.files }; },
   };
 }
 const store = process.env.DATABASE_URL ? pgStore(process.env.DATABASE_URL) : fileStore();
@@ -78,6 +85,23 @@ async function loadState() {
     for (const m of SEED.media) { S.media.set(m.id, m); await persist('media', m.id, m); }
     console.log('Seeded', SEED.estates.length, 'estates');
   }
+  const done = new Set((rows.find(r => r.col === 'meta' && r.id === 'migrations') || {}).data || []);
+  if (!done.has('v2-official')) { // remove the sample estates and flyers; new payment plans
+    const used = new Set([...S.apps.values()].map(a => a.e));
+    for (const id of ['e1', 'e2', 'e3', 'e4', 'e5']) if (S.estates.has(id) && !used.has(id)) await del('estates', id);
+    for (const id of ['m1', 'm2', 'm3']) if (S.media.has(id)) await del('media', id);
+    S.settings = { ...S.settings, plans: PLANS, deposit: S.settings.deposit || 40 }; await persist('meta', 'settings', S.settings);
+    done.add('v2-official'); await persist('meta', 'migrations', [...done]); console.log('Applied v2-official: sample estates removed, 6/12-month plans set');
+  }
+}
+/* delete uploads nothing points to (abandoned forms, replaced photos) once they are a week old */
+async function cleanupFiles(minAgeDays = 7) {
+  const text = JSON.stringify({ c: COLS.map(c => [...S[c].values()]), s: S.settings });
+  const used = new Set(); for (const m of text.matchAll(/\/f\/([\w-]{10,40})/g)) used.add(m[1]);
+  let n = 0, bytes = 0; const cut = Date.now() - minAgeDays * 864e5;
+  for (const f of await store.listFiles()) if (!used.has(f.id) && new Date(f.created).getTime() < cut) { await store.delFile(f.id); n++; bytes += f.size; }
+  if (n) console.log('Cleanup removed', n, 'unused files,', Math.round(bytes / 1024), 'KB');
+  return { removed: n, bytes };
 }
 let logT = null;
 function addLog(x) { S.log.unshift({ t: now(), x: clip(x, 240) }); S.log = S.log.slice(0, 500); clearTimeout(logT); logT = setTimeout(() => persist('meta', 'log', S.log), 400); }
@@ -254,13 +278,23 @@ async function handle(req, res) {
     }
     return send(res, 200, { ok: true, found: false });
   }
+  if (M === 'GET' && p === '/api/staff/usage') {
+    if (!sess || sess.role !== 'staff') return send(res, 401, { ok: false, error: 'Please sign in again.' });
+    const u = await store.usage(), files = await store.listFiles();
+    return send(res, 200, { ok: true, total: u.total, files: u.files, count: files.length, limit: FREE_BYTES });
+  }
   if (M !== 'POST') return send(res, 404, { ok: false, error: 'Not found' });
+  if (p === '/api/staff/cleanup') {
+    if (!sess || sess.role !== 'staff') return send(res, 401, { ok: false, error: 'Please sign in again.' });
+    return send(res, 200, { ok: true, ...(await cleanupFiles(1)) });
+  }
 
   if (p === '/api/upload') {
     if (limited(req, 'up', 60, 10 * 60e3)) return send(res, 429, { ok: false, error: 'Too many uploads. Please wait a few minutes.' });
     const type = String(req.headers['content-type'] || '').split(';')[0];
     if (!/^(image\/(jpeg|png|webp|gif)|application\/pdf)$/.test(type)) return send(res, 415, { ok: false, error: 'Please upload a photo (JPG or PNG) or a PDF.' });
     const buf = await readBody(req, MAX_FILE); if (!buf.length) return send(res, 400, { ok: false, error: 'The file is empty.' });
+    if (type === 'application/pdf' && buf.length > MAX_PDF) return send(res, 413, { ok: false, error: 'That PDF is over 2 MB. Please upload a photo of the page instead.' });
     const id = rid(15), name = clip(decodeURIComponent(String(req.headers['x-file-name'] || 'file')), 120);
     await store.putFile(id, { name, type, size: buf.length }, buf);
     return send(res, 200, { ok: true, url: '/f/' + id, name, type });
@@ -319,6 +353,6 @@ async function handle(req, res) {
 
 loadIndex();
 loadState().then(() => {
-  http.createServer((req, res) => handle(req, res).catch(e => { console.error(e); if (!res.headersSent) send(res, e.code >= 400 && e.code < 600 ? e.code : 500, { ok: false, error: e.code === 413 ? 'That file is too large (8 MB max).' : 'Something went wrong. Please try again.' }); }))
-    .listen(PORT, () => console.log(`Tandra Asset Hub on :${PORT} · storage: ${store.kind} · staff login ${STAFF_PASSWORD ? 'on' : 'OFF (set STAFF_PASSWORD)'}`));
+  http.createServer((req, res) => handle(req, res).catch(e => { console.error(e); if (!res.headersSent) send(res, e.code >= 400 && e.code < 600 ? e.code : 500, { ok: false, error: e.code === 413 ? 'That file is too large (3 MB max).' : 'Something went wrong. Please try again.' }); }))
+    .listen(PORT, () => { setTimeout(() => cleanupFiles().catch(e => console.error('cleanup', e.message)), 60e3); setInterval(() => cleanupFiles().catch(e => console.error('cleanup', e.message)), 6 * 3600e3); console.log(`Tandra Asset Hub on :${PORT} · storage: ${store.kind} · staff login ${STAFF_PASSWORD ? 'on' : 'OFF (set STAFF_PASSWORD)'}`); });
 }).catch(e => { console.error('Could not start:', e); process.exit(1); });

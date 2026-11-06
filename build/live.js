@@ -31,9 +31,9 @@ load=function(){let st={};try{st=JSON.parse(localStorage.getItem(LS)||'{}')}catc
 const _render=render;render=function(){if(!READY){$('#bar').innerHTML='';$('#app').innerHTML=`<div class="boot"><span class="logo" role="img" aria-label="Tandra Asset Hub" style="--lh:34px"></span><p class="muted small" id="boot-msg">Loading…</p></div>`;return}_render()};
 /* uploads go to the server; signatures stay inline */
 const readLocal=readFile;
-readFile=function(file,max){return readLocal(file,max).then(async r=>{let blob;
+readFile=function(file,max,q){return readLocal(file,max,q).then(async r=>{let blob;
   if(r.data&&/^data:/.test(r.data)){blob=await (await fetch(r.data)).blob()}else blob=file;
-  if(blob.size>8*1024*1024){toast('That file is too large. Please use one under 8 MB.');return new Promise(()=>{})}
+  if(/pdf/.test(blob.type||file.type)&&blob.size>2*1024*1024){toast('That PDF is over 2 MB. Please upload a photo of the page instead.');return new Promise(()=>{})}if(blob.size>3*1024*1024){toast('That file is too large. Please use one under 3 MB.');return new Promise(()=>{})}
   const nm=encodeURIComponent(r.name||file.name||'file');const h={'x-file-name':nm};const t=tok();if(t)h.authorization='Bearer '+t;
   toast('Uploading…');let j={};try{const res=await fetch('/api/upload',{method:'POST',headers:Object.assign(h,{'content-type':blob.type||file.type}),body:blob});j=await res.json().catch(()=>({}))}catch(e){}
   if(!j.ok){toast(j.error||'Upload failed. Check your connection and try again.');return new Promise(()=>{})}
@@ -54,7 +54,6 @@ Object.assign(T,{
   resetDemo(){},
 });
 const _c=T.c;T.c=function(v,p={}){if(v==='type'&&p.t)api('/api/view',{t:p.t});return _c.call(T,v,p)};
-const _payModal=T.payModal;T.payModal=function(aid){_payModal(aid);const on=document.querySelector('#modal input[name=method][value=online]');if(on){on.closest('label').remove();const ph=document.querySelector('#modal input[name=method][value=physical]');ph.checked=true;$('#phys').hidden=false;$('#onl').textContent='Online card payments are coming soon.'}};
 const _resetFor=T.resetFor;T.resetFor=function(uidd){const keep=toast;let msg='';toast=m=>{msg=m};_resetFor(uidd);toast=keep;const u=U(uidd);const p=(msg.match(/password: (\S+?)\)/)||[])[1]||'';modal(`<h3>Temporary password for ${esc(u.name)}</h3><p class="small">Read this to ${esc(first(u.name))} on ${esc(u.phone||'the phone')}. It replaces their old password.</p><div class="creds" style="font-size:20px;text-align:center">${esc(p)}</div><p class="small muted">They can change it in Profile after signing in.</p><button class="btn" onclick="T.close()">Done</button>`)};
 const _submitApp=T.submitApp;T.submitApp=async function(){if(T._sending)return;T._sending=true;try{const d=S.ui.draft,f=d.f;let pass=null;
     if(!me()){pass='tah-'+code(6).toLowerCase();const full=[f.a_first,f.a_other,f.a_surname].filter(Boolean).join(' ');
@@ -70,3 +69,10 @@ async function boot(){load();const route=()=>{const m=location.hash==='#staff'?'
   READY=true;render();
   setInterval(()=>{if(document.hidden||T._sending)return;const d=BASE&&diffSnaps(BASE,snapData());if(d&&(d.ops.length||d.settings||d.log.length))syncNow();else pull().then(ok=>ok&&softRender())},S.ui.mode==='staff'?30000:60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&READY)pull().then(ok=>ok&&softRender())})}
+
+/* storage meter for staff (Settings) */
+const fmtB=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+T.usage=async function(){const el=$('#usage');if(!el||el.dataset.done)return;el.dataset.done=1;const r=await api('/api/staff/usage');if(!r.ok){el.innerHTML='<h3>Storage</h3><p class="small muted">Couldn’t read storage right now.</p>';return}
+  const pct=Math.min(100,r.total/r.limit*100);el.innerHTML=`<div class="row between"><h3>Storage</h3><span class="pill ${pct>80?'bad':pct>60?'warn':'ok'}">${pct.toFixed(1)}% of free 1 GB</span></div><div class="meter"><i style="width:${Math.max(1,pct)}%"></i></div><p class="small muted">${fmtB(r.total)} used · uploads ${fmtB(r.files)} in ${r.count} files. Photos are compressed when uploaded, ID copies aren’t stored, and unused uploads are removed automatically after 7 days.</p><button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="T.cleanup(this)">Remove unused uploads now</button>`};
+T.cleanup=async function(btn){btn.disabled=true;const r=await api('/api/staff/cleanup',{});btn.disabled=false;if(!r.ok){toast(r.error||'Couldn’t clean up right now.');return}toast(r.removed?`Removed ${r.removed} unused file${r.removed>1?'s':''} (${fmtB(r.bytes)})`:'Nothing to remove — storage is tidy');const el=$('#usage');if(el){delete el.dataset.done;T.usage()}};
+const _sSettings=sSettings;sSettings=function(){setTimeout(T.usage,0);return _sSettings()};

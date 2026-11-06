@@ -25,4 +25,12 @@ git commit -am "Update site" && git push       # Render redeploys automatically
 - Client passwords are hashed (scrypt); sessions last 60 days.
 - Clients can only see and change their own records. Payment and fee confirmations, offers, allocations, prices and unit counts can only be changed by staff.
 - Uploaded files are served from unguessable links (`/f/...`).
-- Online card payments, email and SMS are not connected yet (Paystack, Resend and an SMS provider are the next steps).
+- Payments are by bank transfer only, with evidence of payment that staff confirm.
+- Email and SMS are not connected yet (Resend and an SMS provider are the next steps).
+
+## Keeping storage free
+Neon's free plan gives 1 GB. To stay inside it:
+- Passport photos are shrunk in the browser to about 10–25 KB; payment evidence to about 60–150 KB; estate photos to about 120–300 KB. PDFs are limited to 2 MB.
+- Only the ID number is collected — no ID copies are stored.
+- Uploads nothing points to (abandoned forms, replaced photos) are deleted automatically after 7 days.
+- Staff can see usage and remove unused uploads in **Settings → Storage**.
