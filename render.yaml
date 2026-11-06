@@ -3,6 +3,7 @@ services:
   - type: web
     name: tandrahub
     runtime: node
+    region: frankfurt        # next to the Neon database (also Frankfurt)
     plan: free               # sleeps after 15 min without visitors; first visit then takes ~1 minute
     buildCommand: npm install --omit=dev
     startCommand: node server/server.js
