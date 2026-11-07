@@ -9,7 +9,8 @@ s=src.replace("const LIVE=false;","const LIVE=true;",1)
 m=re.search(r"\nif\(LIVE\)\{const route=.*?else render\(\);\n",s,re.S); assert m
 s=s[:m.start()]+"\n"+live+"\nboot();\n"+s[m.end():]
 s=s.replace("load();\n"+live,live,1)  # no-op safety
-s=re.sub(r"const IMG=\{.*?\};\n","const IMG={};\n",s,count=1,flags=re.S)  # sample photos are demo-only
+imgs=sorted(f[:-4] for f in os.listdir(os.path.join(ROOT,'public','img')) if f.endswith('.jpg'))
+s=re.sub(r"const IMG=\{.*?\};\n",lambda _:"const IMG={"+",".join(f"{k}:'/img/{k}.jpg'" for k in imgs)+"};\n",s,count=1,flags=re.S)  # estate photos are served from public/img
 i=s.index('<div id="bar"></div>');head,body=s[:i],s[i:]
 head=head.replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
 fav="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2313998C'/%3E%3Cpath d='M16 18h32v7H35.5v23h-7V25H16z' fill='white'/%3E%3C/svg%3E"

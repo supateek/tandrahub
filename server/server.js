@@ -93,6 +93,13 @@ async function loadState() {
     S.settings = { ...S.settings, plans: PLANS, deposit: S.settings.deposit || 40 }; await persist('meta', 'settings', S.settings);
     done.add('v2-official'); await persist('meta', 'migrations', [...done]); console.log('Applied v2-official: sample estates removed, 6/12-month plans set');
   }
+  if (!done.has('v3-restore')) { // bring back the Tandra estates and Midas Touch partnership estates, now fully editable by staff
+    const R = SEED.restore || { estates: [], media: [] };
+    for (const e of R.estates) if (!S.estates.has(e.id)) { S.estates.set(e.id, e); await persist('estates', e.id, e); }
+    for (const m of R.media) if (!S.media.has(m.id)) { S.media.set(m.id, m); await persist('media', m.id, m); }
+    if (!S.settings.instagram) { S.settings = { ...S.settings, instagram: 'tandrahub' }; await persist('meta', 'settings', S.settings); }
+    done.add('v3-restore'); await persist('meta', 'migrations', [...done]); console.log('Applied v3-restore:', R.estates.length, 'estates restored');
+  }
 }
 /* delete uploads nothing points to (abandoned forms, replaced photos) once they are a week old */
 async function cleanupFiles(minAgeDays = 7) {
@@ -264,6 +271,10 @@ async function handle(req, res) {
     const f = await store.getFile(id); if (!f) { res.writeHead(404); return res.end('Not found'); }
     res.writeHead(200, { 'content-type': f.type || 'application/octet-stream', 'cache-control': 'private, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'content-disposition': 'inline; filename="' + String(f.name || 'file').replace(/[^\w.\- ]/g, '_') + '"' });
     return res.end(f.data);
+  }
+  if ((M === 'GET' || M === 'HEAD') && /^\/img\/[\w-]+\.jpg$/.test(p)) { // estate photos shipped with the site (no database storage)
+    let buf; try { buf = fs.readFileSync(path.join(PUB, p)); } catch (e) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=604800', 'x-content-type-options': 'nosniff' }); return res.end(M === 'HEAD' ? undefined : buf);
   }
   if (!p.startsWith('/api/')) { if (M !== 'GET' && M !== 'HEAD') { res.writeHead(405); return res.end(); } return serveIndex(req, res); }
 

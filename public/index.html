@@ -97,6 +97,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(560px,calc(100% - 28px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)));z-index:40;background:var(--surface-strong);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border:1px solid var(--edge);border-radius:26px;box-shadow:var(--shadow-lg),0 2px 6px rgba(0,0,0,.04);display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:7px;gap:2px}
 .tabbar button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:500;color:var(--muted);padding:7px 2px 6px;border-radius:19px;cursor:pointer;position:relative;transition:background .15s,color .15s}
 .tabbar button .ic{width:22px;height:22px}
+.ig-card{padding:0;overflow:hidden;max-width:560px;width:100%;background:#fff}.ig-frame{display:block;width:100%;border:0;height:calc(min(560px,100vw - 32px)*1.42 + 240px)}
 .tabbar button.on{color:var(--accent);background:var(--soft)}
 .tabbar em{position:absolute;top:3px;left:calc(50% + 6px);font-style:normal;font-size:10px;background:var(--gold);color:#fff;border-radius:99px;padding:0 6px;font-weight:600;line-height:16px}
 .c-foot{padding-block:28px calc(120px + env(safe-area-inset-bottom,0px));color:var(--muted);font-size:12.5px}
@@ -361,7 +362,7 @@ section.block{padding-block:22px}
 
 <script>
 const LS='tandra-asset-hub-demo-v3';
-const IMG={};
+const IMG={army:'/img/army.jpg',guz:'/img/guz.jpg',mcApt:'/img/mcApt.jpg',mcDup:'/img/mcDup.jpg',mcPlaza:'/img/mcPlaza.jpg',mcTer:'/img/mcTer.jpg',mcVilla:'/img/mcVilla.jpg',phdl3:'/img/phdl3.jpg',phdl5:'/img/phdl5.jpg',sv3:'/img/sv3.jpg',sv5:'/img/sv5.jpg'};
 const SRC=s=>s&&s[0]==='@'?(IMG[s.slice(1)]||''):s;
 
 const $=s=>document.querySelector(s);
@@ -478,7 +479,7 @@ function seed(){
       {t:T('2026-11-03T10:22'),x:'Grace Danjuma submitted application TAH/SV/2026/0003'},{t:T('2026-11-03T10:05'),x:'Grace Danjuma created an account'},
       {t:T('2026-11-03T10:00'),x:'Staff sent “Now selling: Solisvale Estate, Lugbe” to 8 people'},{t:T('2026-11-01'),x:'Offer letter issued to Tunde Bakare'}
     ],
-    settings:{fee:100000,deposit:40,late:1.5,plans:[{...OUT},{...P6},{...P12}],
+    settings:{fee:100000,deposit:40,instagram:'tandrahub',late:1.5,plans:[{...OUT},{...P6},{...P12}],
       company:{name:'Tandra Asset Hub Ltd',address:'Suite 64, Ridds Plaza, Wuye (by Valuemart), FCT Abuja',phone:'0810 172 2222',email:'www.tandrahub.com',bank:'UBA',acctName:'TANDRA ASSET HUB LTD',acctNo:'1030411406',signatory:'Head, Sales & Allocations'},
       staff:{name:'Admin',email:'staff@tandra.example',pass:'admin123'}},
     ui:{mode:'client',cv:'home',cp:{},sv:'dash',sp:{},me:null,staff:false,tab:'overview',gi:0,gt:'photos',draft:null,filter:'all'}
@@ -732,7 +733,7 @@ function hydrate(){
 
 /* ---------- CLIENT ---------- */
 const ic=p=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
-const IC={home:ic('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'),
+const IC={hard:ic('<path d="M2 18h20M4 18a8 8 0 0 1 16 0M10 18V9.3a2 2 0 0 1 4 0V18M7 12.5V15M17 12.5V15"/>'),ig:ic('<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/>'),home:ic('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'),
   building:ic('<path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 9h5a1 1 0 0 1 1 1v11M2 21h20M8 8h2M8 12h2M8 16h2M17 13v.01M17 17v.01"/>'),
   wallet:ic('<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M16 13h2M3 10h18M7 6V4h10v2"/>'),
   bell:ic('<path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
@@ -760,15 +761,15 @@ const pageHead=(title,back)=>(PH_FALLBACK=back,`<div class="page-head"><button c
 function clientView(){
   const v=S.ui.cv,p=S.ui.cp||{};let body;
   if(v==='estate')body=cEstate(E(p.e));else if(v==='estates')body=cEstates();else if(v==='type')body=cType(E(p.e),TY(p.e,p.t));else if(v==='apply')body=cApply();
-  else if(v==='login')body=cLogin();else if(v==='account'&&me())body=cAccount();else if(v==='letter')body=cLetter();else if(v==='verify')body=cVerify();else body=cHome();
+  else if(v==='login')body=cLogin();else if(v==='account'&&me())body=cAccount();else if(v==='letter')body=cLetter();else if(v==='verify')body=cVerify();else if(v==='build')body=cBuild();else body=cHome();
   return `<main>${body}</main>`+`<footer class="c-foot"><div class="wrap row between"><span>© 2026 ${esc(S.settings.company.name)} · ${esc(S.settings.company.address)}</span><span>${esc(S.settings.company.phone)} · ${esc(S.settings.company.email)} · <a onclick="T.termsModal()">Terms & conditions</a></span></div></footer>`;
 }
 function renderClient(){const html=clientView();return cHead()+`<div class="stage"><div id="view">${html}</div></div>`+cTabbar()}
 function cHead(){const u=me(),un=u?S.notices.filter(n=>n.u===u.id&&!n.read).length:0;
   return `<header class="c-head"><div class="wrap row"><a class="brand" onclick="T.c('home')"><span class="logo" role="img" aria-label="Tandra Asset Hub"></span></a><div class="row" style="gap:8px"><a class="link-sm" onclick="T.c('verify')">Verify letter</a>${themeBtn()}<button class="icon-btn" aria-label="Inbox" onclick="T.goTab('inbox')">${IC.bell}${un?'<i class="dot"></i>':''}</button>${u?`<button class="avatar" aria-label="Profile" onclick="T.goTab('profile')">${esc(initials(u.name))}</button>`:''}</div></div></header>`}
 function cTabbar(){const v=S.ui.cv,u=me(),un=u?S.notices.filter(n=>n.u===u.id&&!n.read).length:0;
-  const act=v==='home'?'home':['estates','estate','type','apply'].includes(v)?'estates':v==='account'?'profile':(v==='letter'||v==='login')?'profile':'';
-  const it=[['home','Home',IC.home],['estates','Estates',IC.building],['profile',u?'Profile':'Sign in',IC.user,un]];
+  const act=v==='home'?'home':v==='build'?'build':['estates','estate','type','apply'].includes(v)?'estates':v==='account'?'profile':(v==='letter'||v==='login')?'profile':'';
+  const it=[['home','Home',IC.home],['estates','Estates',IC.building],['build','Construction',IC.hard],['profile',u?'Profile':'Sign in',IC.user,un]];
   return `<nav class="tabbar" aria-label="Main">${it.map(([k,l,i,b])=>`<button class="${act===k?'on':''}" ${act===k?'aria-current="page"':''} onclick="T.tabNav('${k}')">${i}<span>${l}</span>${b?`<em>${b}</em>`:''}</button>`).join('')}</nav>`}
 function nextStep(a){const m=money(a);
   if(a.status==='submitted')return ['Application under review',`${esc(m.t.name)} · ${esc(m.e.name)}`,'Your offer letter will arrive by email and SMS.','View',`T.goTab('overview')`];
@@ -790,6 +791,11 @@ function homeMember(u){const h=new Date().getHours(),part=h<12?'morning':h<17?'a
 function homeGuest(es){const tl=es.reduce((s,e)=>s+e.types.reduce((x,t)=>x+left(t),0),0);
   return `<section class="hero wrap"><div class="hero-grid"><div><p class="eyebrow">Tandra Asset Hub Ltd · Abuja</p><h1>Welcome to <span class="hl">Tandra Asset Hub</span></h1><p class="lede">Homes in Abuja’s growing districts. Apply, sign your offer, pay and receive your allocation, all from one account.</p><button class="btn cta" onclick="T.c('estates')">Browse estates <span class="circle">${IC.arrow}</span></button><p class="small muted" style="margin-top:18px">Already a client? <a onclick="T.c('login')"><b>Sign in</b></a></p></div>
   <div class="hero-art"><span class="bubble b1"></span><span class="bubble b2"></span><div class="hero-img">${es[0]?cover(es[0]):bldg('duplex',172,0)}</div>${tl?`<div class="hero-chip"><b>${tl}</b>homes available now</div>`:''}</div></div></section>`}
+const igHandle=()=>String(S.settings.instagram||'tandrahub').replace(/^@/,'').replace(/[^\w.]/g,'');
+function cBuild(){const h=igHandle(),url='https://www.instagram.com/'+h+'/';
+  return `<section class="wrap stack" style="padding-top:18px;gap:16px"><div><p class="eyebrow">On site</p><h1 style="margin:4px 0 6px">Construction</h1><p class="muted">Progress from the sites we are building and managing. Every new post on our Instagram shows here.</p></div>
+  <div class="card ig-card"><iframe class="ig-frame" src="${url}embed/" title="Tandra Asset Hub on Instagram" loading="lazy" scrolling="no" allowtransparency="true"></iframe></div>
+  <a class="btn" href="${url}" target="_blank" rel="noopener" style="align-self:flex-start">${IC.ig} Follow @${esc(h)} on Instagram</a></section>`}
 function cHome(){
   const u=me(),es=S.estates.filter(e=>e.published),med=S.media.filter(m=>m.published);
   return (u?homeMember(u):homeGuest(es))+`
@@ -1166,12 +1172,13 @@ function sSettings(){const s=S.settings,c=s.company;
   `<form class="stack" onsubmit="T.saveSettings(event)"><div class="card stack"><h3>Fees and default plans</h3><p class="small muted">Used for estates that don’t set their own deposit and plan in the estate editor.</p><div class="grid4"><label class="f">Application fee (₦)<input name="fee" type="number" value="${s.fee}"></label><label class="f">Deposit on plans (%)<input name="deposit" type="number" value="${s.deposit}"></label><label class="f">Late charge per month (%)<input name="late" type="number" step="0.1" value="${s.late}"></label></div>
    <div class="tw"><table class="tbl"><thead><tr><th>Plan</th><th>Months</th><th>Interest (%)</th></tr></thead><tbody>${s.plans.map((p,i)=>`<tr><td>${esc(p.label)}</td><td>${p.months}</td><td><input name="rate${i}" type="number" step="0.5" value="${p.rate}" style="max-width:110px" ${p.months?'':'disabled'}></td></tr>`).join('')}</tbody></table></div></div>
    <div class="card stack"><h3>Company details on letters</h3><div class="grid2"><label class="f">Company name<input name="cname" value="${esc(c.name)}"></label><label class="f">Address<input name="addr" value="${esc(c.address)}"></label><label class="f">Phone<input name="phone" value="${esc(c.phone)}"></label><label class="f">Website / email<input name="email" value="${esc(c.email)}"></label><label class="f">Signatory title<input name="sig" value="${esc(c.signatory)}"></label><label class="f">Bank name<input name="bank" value="${esc(c.bank)}"></label><label class="f">Account name<input name="acctName" value="${esc(c.acctName)}"></label><label class="f">Account number<input name="acctNo" value="${esc(c.acctNo)}"></label></div></div>
+   <div class="card stack"><h3>Construction tab</h3><p class="small muted">The Construction tab shows this Instagram account's posts. Anything you post there appears on the site automatically.</p><label class="f">Instagram username<input name="instagram" value="${esc(s.instagram||'tandrahub')}" placeholder="tandrahub"></label></div>
    ${LIVE?'<div class="card stack" id="usage"><h3>Storage</h3><p class="small muted">Checking…</p></div>':''}<div class="row"><button class="btn">Save settings</button>${LIVE?'':'<button type="button" class="btn danger" onclick="T.resetDemo(this)">Reset demo data</button>'}</div></form>`}
 
 /* ---------- ACTIONS ---------- */
 const T={
   close(){$('#modal').hidden=true;$('#modal').innerHTML=''},
-  goTab(k){if(k==='apply'){if(!S.ui.draft||S.ui.draft.step==='done'||S.ui.draft.form)S.ui.draft=newDraft();return T.c('apply')}if(k==='home')return T.c('home');if(k==='estates')return T.c('estates');if(!me()){T.c('login');if(k!=='profile')toast('Sign in to see your '+(k==='docs'?'documents':k));return}pushHist({cv:'account',cp:{},tab:k});const np=T._noPush;T._noPush=true;S.ui.tab=k;S.ui.pedit=null;try{T.c('account')}finally{T._noPush=np}},
+  goTab(k){if(k==='apply'){if(!S.ui.draft||S.ui.draft.step==='done'||S.ui.draft.form)S.ui.draft=newDraft();return T.c('apply')}if(k==='home')return T.c('home');if(k==='estates')return T.c('estates');if(k==='build')return T.c('build');if(!me()){T.c('login');if(k!=='profile')toast('Sign in to see your '+(k==='docs'?'documents':k));return}pushHist({cv:'account',cp:{},tab:k});const np=T._noPush;T._noPush=true;S.ui.tab=k;S.ui.pedit=null;try{T.c('account')}finally{T._noPush=np}},
   pedit(k){S.ui.pedit=S.ui.pedit===k?null:k;render();setTimeout(()=>{const f=document.querySelectorAll('.stack > form.card');if(f.length)f[f.length-1].scrollIntoView({behavior:'smooth',block:'center'})},30)},
   loc(l){S.ui.loc=l;render()},esearch(q){S.ui.eq=q;S.ui.loc='All';T.c('estates')},
   more(){const b=staffBadges();modal(`<h3>More</h3><div class="menu" style="padding:0">${[['clients','Clients & subscribers',IC.users],['media','Flyers & newsletters',IC.image],['notify','Notifications',IC.send],['inspections','Site inspections',IC.cal,b.ins],['activity','Activity log',IC.list],['settings','Settings',IC.cog]].map(([k,l,i,n])=>`<button onclick="T.close();T.st('${k}')"><span class="mi">${i}</span><span class="t">${l}</span>${n?`<em>${n}</em>`:''}${IC.chev}</button>`).join('')}</div>`)},
@@ -1347,7 +1354,7 @@ const T={
   remindAll(){const due=S.apps.filter(a=>a.counted&&money(a).overdue);due.forEach(a=>{const u=U(a.u),m=money(a);notify(u.id,'Payment reminder',`Dear ${first(u.name)}, ${N(m.overdue)} is overdue on your ${m.p.label.toLowerCase()} for ${m.t.name}, ${m.e.name}. Late charges so far: ${N(m.late)}. Please pay from your account.`)});
     if(due.length){S.broadcasts.unshift({id:uid(),title:'Payment reminder',aud:'Clients with overdue payments',count:due.length,ch:['email','sms'],date:now()});log(`Staff sent payment reminders to ${due.length} clients`)}save();render();toast(due.length?`Reminders sent to ${due.length} client${due.length>1?'s':''}`:'No overdue payments')},
   insp(id,st){const i=S.inspections.find(x=>x.id===id);i.status=st;if(i.u&&st==='confirmed')notify(i.u,'Site inspection confirmed',`Your inspection on ${D(i.date)} at ${i.time} is confirmed. Our team will meet you at the estate gate.`,['sms','app']);log(`Inspection for ${i.name} ${st}`);save();render()},
-  saveSettings(ev){ev.preventDefault();const f=Object.fromEntries(new FormData(ev.target)),s=S.settings;s.fee=+f.fee;s.deposit=+f.deposit;s.late=+f.late;s.plans.forEach((p,i)=>{if(p.months)p.rate=+f['rate'+i]});Object.assign(s.company,{name:f.cname,address:f.addr,phone:f.phone,email:f.email,signatory:f.sig,bank:f.bank,acctName:f.acctName,acctNo:f.acctNo});log('Staff updated settings');save();render();toast('Settings saved')},
+  saveSettings(ev){ev.preventDefault();const f=Object.fromEntries(new FormData(ev.target)),s=S.settings;s.fee=+f.fee;s.deposit=+f.deposit;s.late=+f.late;s.plans.forEach((p,i)=>{if(p.months)p.rate=+f['rate'+i]});s.instagram=String(f.instagram||'').trim().replace(/^https?:\/\/(www\.)?instagram\.com\//,'').replace(/^@/,'').replace(/[\/?#].*$/,'')||'tandrahub';Object.assign(s.company,{name:f.cname,address:f.addr,phone:f.phone,email:f.email,signatory:f.sig,bank:f.bank,acctName:f.acctName,acctNo:f.acctNo});log('Staff updated settings');save();render();toast('Settings saved')},
   resetDemo(btn){if(!btn.dataset.sure){btn.dataset.sure=1;btn.textContent='Tap again to reset everything';return}S=seed();fillSeed();S.ui.mode='staff';S.ui.staff=true;save();render();toast('Demo data reset')},
   viewImg(src){modal(`<img src="${src}" alt="" style="width:100%;border-radius:8px"><button class="btn ghost" onclick="T.close()">Close</button>`,true)}
 };
